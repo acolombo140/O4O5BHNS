@@ -189,8 +189,8 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
     H = np.zeros([binsx,binsy,binsz,len(w_per_z_per_system[0,:])])
     
     for i in range (len(w_per_z_per_system[0,:])):
-        w = weights*w_per_z_per_system[:,i]*cosmo.differential_comoving_volume(redshifts[i]).value/(1+redshifts[i])
-        H[:,:,:,i], edges= np.histogramdd((m1,m2,spin1),weights = w,bins=(binsx,binsy,binsz),range=(bhxvarrange,nsxvarrange,spinxvarrange))
+        W = w_per_z_per_system[:,i]*cosmo.differential_comoving_volume(redshifts[i]).value/(1+redshifts[i])
+        H[:,:,:,i], edges= np.histogramdd((m1,m2,spin1),weights = W,bins=(binsx,binsy,binsz),range=(bhxvarrange,nsxvarrange,spinxvarrange))
     xedges = edges[0]
     yedges = edges[1]
     zedges = edges[2]
