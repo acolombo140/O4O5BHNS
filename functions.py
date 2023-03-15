@@ -94,7 +94,7 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     M2 = fDCO['M2'][...].squeeze()   # Compact object mass of star 2
     
     m1, m2, spin1, spin2 = obtainM1BHandM2NS_spin(M1, M2, spinM1, spinM2)
-    weights = fdata['weights_detected']['w_112'][...].squeeze()
+    weights = fdata['weights_intrinsic']['w_112'][...].squeeze()
     
     bhxvarrange=[1.5,27]
     nsxvarrange=[0.9,3]
