@@ -121,13 +121,13 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     for j in range(len(zedges)-1):
         zcentre[j] = zedges[j] + (zedges[j+1] - zedges[j]) / 2.
     
-    g = H
-    gr = g.ravel()
-    s = np.argsort(gr)
-    cr = np.empty(gr.shape)
-    cr[s] = np.cumsum(gr[s])
-    c = np.reshape(cr/cr.max(),g.shape)
-    interp_3 = RegularGridInterpolator((xcentre,ycentre,zcentre),c)
+    #g = H
+    #gr = g.ravel()
+    #s = np.argsort(gr)
+    #cr = np.empty(gr.shape)
+    #cr[s] = np.cumsum(gr[s])
+    #c = np.reshape(cr/cr.max(),g.shape)
+    interp_3 = RegularGridInterpolator((xcentre,ycentre,zcentre),H)
     w_m1m2spin = interp_3((mbh,mns,spin_bh))
     
     #Redshift z
@@ -195,12 +195,12 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
     yedges = edges[1]
     zedges = edges[2]
     
-    g = H
-    gr = g.ravel()
-    s = np.argsort(gr)
-    cr = np.empty(gr.shape)
-    cr[s] = np.cumsum(gr[s])
-    c = np.reshape(cr/cr.max(),g.shape)
+    #g = H
+    #gr = g.ravel()
+    #s = np.argsort(gr)
+    #cr = np.empty(gr.shape)
+    #cr[s] = np.cumsum(gr[s])
+    #c = np.reshape(cr/cr.max(),g.shape)
     
     xcentre = np.zeros(binsx)
     ycentre = np.zeros(binsy)
@@ -216,7 +216,7 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
         zcentre[j] = zedges[j] + (zedges[j+1] - zedges[j]) / 2.
     
     #Interpolation of the 4D instogram
-    interp_4 = RegularGridInterpolator((xcentre,ycentre,zcentre,redshifts[:100]),c)    
+    interp_4 = RegularGridInterpolator((xcentre,ycentre,zcentre,redshifts[:100]),H)    
     w_m1m2spin = np.zeros(len(mbh))
     w_m1m2spin[z<0.9] = interp_4((mbh[z<0.9],mns[z<0.9],spin_bh[z<0.9],z[z<0.9]))
     
@@ -224,7 +224,7 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
     w_thv = np.sin(thv)
     
     #Total
-    w = w_m1m2spin * w_thv
+    w = w_m1m2spin * w_thv * z
     #w = mbh*spin_bh*w_m1m2spin * w_thv
     
     #Monte Carlo
