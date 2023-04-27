@@ -60,9 +60,9 @@ def GW_duty(dH,dL,dV,dK,num):
     Kbool = np.zeros(num)
 
     Hbool[ranH<=dH] = True
-    Lbool[ranH<=dL] = True
-    Vbool[ranH<=dV] = True
-    Kbool[ranH<=dK] = True
+    Lbool[ranL<=dL] = True
+    Vbool[ranV<=dV] = True
+    Kbool[ranK<=dK] = True
     
     det_bool=[Hbool,Lbool,Vbool,Kbool]
 
@@ -86,7 +86,7 @@ def obtainM1BHandM2NS_spin(m1, m2, spin1, spin2):
     
     return m1bh, m2ns, spinbh, spinns # m1bh has all the heaviest systems
 
-def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spinM2):
+def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,w_type,spinM1,spinM2,bhx,nsx,spinx,binsx,binsy,binsz):
     fdata = h5.File(data_path)
     fDCO = fdata['doubleCompactObjects']
     
@@ -94,16 +94,10 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     M2 = fDCO['M2'][...].squeeze()   # Compact object mass of star 2
     
     m1, m2, spin1, spin2 = obtainM1BHandM2NS_spin(M1, M2, spinM1, spinM2)
-    weights = fdata['weights_intrinsic']['w_112'][...].squeeze()
+    weights = fdata['weights_intrinsic'][w_type][...].squeeze()
     
-    bhxvarrange=[1.5,27]
-    nsxvarrange=[0.9,3]
-    spinxvarrange=[-0.1,1.1]
-    binsx=50
-    binsy=50
-    binsz=50
     w = weights
-    H, edges= np.histogramdd((m1,m2,spin1),weights = w,bins=(binsx,binsy,binsz),range=(bhxvarrange,nsxvarrange,spinxvarrange))
+    H, edges= np.histogramdd((m1,m2,spin1),weights = w,bins=(binsx,binsy,binsz),range=(bhx,nsx,spinx))
     xedges = edges[0]
     yedges = edges[1]
     zedges = edges[2]
@@ -121,20 +115,14 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     for j in range(len(zedges)-1):
         zcentre[j] = zedges[j] + (zedges[j+1] - zedges[j]) / 2.
     
-    #g = H
-    #gr = g.ravel()
-    #s = np.argsort(gr)
-    #cr = np.empty(gr.shape)
-    #cr[s] = np.cumsum(gr[s])
-    #c = np.reshape(cr/cr.max(),g.shape)
-    interp_3 = RegularGridInterpolator((xcentre,ycentre,zcentre),H)
+    interp_3 = RegularGridInterpolator((xcentre,ycentre,zcentre),H,bounds_error=False,fill_value=0.) #bounds_error=False,fill_value=0.
     w_m1m2spin = interp_3((mbh,mns,spin_bh))
     
     #Redshift z
     
     r0BNS = r0
     tcosmo = np.arange(0.,13.,min_delay_time)*1.e9 #5.e-2
-    zeta_0 = np.linspace(10**(-2.3),10**(0.6),1000)
+    zeta_0 = np.linspace(10**(-2.3),10**(1.),1000) #0.6
     tcosmo_0 = cosmo.lookback_time(zeta_0).value*1.e9
     zp=np.interp(tcosmo,tcosmo_0,zeta_0)
     phi = 0.015*((1+zp)**(2.7))/(1+((1+zp)/2.9)**5.6)
@@ -143,7 +131,6 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     for i in range(len(rd)-1):
         y = phi*(tcosmo-tcosmo[i])**-1
         rd[i] = np.trapz(y[i+1:],tcosmo[i+1:])
-    #rd = np.load("rd.npy")
     rho = np.interp(z,zp,rd)*(r0BNS/rd[0])
     dvdz=4.*np.pi*cosmo.differential_comoving_volume(z).to("Gpc3 sr-1").value
     dpdz=rho*dvdz/(1+z)
@@ -153,8 +140,8 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     w_thv = np.sin(thv)
     
     #Total
-    w = w_m1m2spin * w_thv * w_z  #uniform distribution
-    #w = mbh * spin_bh * w_m1m2spin * w_thv * w_z #log distribution in mbh e spinbh
+    #w = w_m1m2spin * w_thv * w_z  #uniform distribution
+    w = thv* mbh * spin_bh * w_m1m2spin * w_thv * w_z #log distribution in mbh e spinbh
     
     #Monte Carlo
     cz = cumtrapz(dpdz[z.argsort()],np.sort(z),initial=0.)
@@ -162,7 +149,8 @@ def f_weights_fixed(mbh,mns,thv,spin_bh,z,r0,min_delay_time,data_path,spinM1,spi
     
     return C_mc, w
 	
-def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
+    
+def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2,bhx,nsx,spinx,binsx,binsy,binsz):
     
     print("Computing weights")
     
@@ -180,27 +168,19 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
     weights = fDCO['weight'][...].squeeze()[DCOmask]
     
     #Creating a 4D histogram
-    bhxvarrange=[1.5,27]
-    nsxvarrange=[0.9,3]
-    spinxvarrange=[-0.1,1.1]
-    binsx=50
-    binsy=50
-    binsz=50
     H = np.zeros([binsx,binsy,binsz,len(w_per_z_per_system[0,:])])
+
+    dpdz = np.zeros(w_per_z_per_system.shape[1])
     
     for i in range (len(w_per_z_per_system[0,:])):
-        W = w_per_z_per_system[:,i]*cosmo.differential_comoving_volume(redshifts[i]).value/(1+redshifts[i])
-        H[:,:,:,i], edges= np.histogramdd((m1,m2,spin1),weights = W,bins=(binsx,binsy,binsz),range=(bhxvarrange,nsxvarrange,spinxvarrange))
+        w_per_z = w_per_z_per_system[:,i] 
+        dvdz = 4.*np.pi*cosmo.differential_comoving_volume(redshifts[i]).to('Gpc3 sr-1').value
+        dpdz[i] = np.sum(w_per_z)*dvdz/(1+redshifts[i])
+        W = w_per_z*dvdz/(1+redshifts[i])
+        H[:,:,:,i], edges= np.histogramdd((m1,m2,spin1),weights = W,bins=(binsx,binsy,binsz),range=(bhx,nsx,spinx))
     xedges = edges[0]
     yedges = edges[1]
     zedges = edges[2]
-    
-    #g = H
-    #gr = g.ravel()
-    #s = np.argsort(gr)
-    #cr = np.empty(gr.shape)
-    #cr[s] = np.cumsum(gr[s])
-    #c = np.reshape(cr/cr.max(),g.shape)
     
     xcentre = np.zeros(binsx)
     ycentre = np.zeros(binsy)
@@ -216,18 +196,21 @@ def f_weights(mbh,mns,thv,spin_bh,z,data_path,spinM1,spinM2):
         zcentre[j] = zedges[j] + (zedges[j+1] - zedges[j]) / 2.
     
     #Interpolation of the 4D instogram
+    
     interp_4 = RegularGridInterpolator((xcentre,ycentre,zcentre,redshifts[:100]),H)    
-    w_m1m2spin = np.zeros(len(mbh))
-    w_m1m2spin[z<0.9] = interp_4((mbh[z<0.9],mns[z<0.9],spin_bh[z<0.9],z[z<0.9]))
+    w_m1m2zspin = np.zeros(len(mbh))
+    w_m1m2zspin[z<0.9] = interp_4((mbh[z<0.9],mns[z<0.9],spin_bh[z<0.9],z[z<0.9]))
     
     #Viewing angle
     w_thv = np.sin(thv)
     
     #Total
-    w = w_m1m2spin * w_thv * z
-    #w = mbh*spin_bh*w_m1m2spin * w_thv
+    w = thv*mbh*spin_bh*w_m1m2zspin * w_thv * z
     
     #Monte Carlo
-    C_mc = 1.
+    dpdz_i = np.interp(z[z<0.9],redshifts[:100],dpdz)
+    cz = cumtrapz(dpdz_i[z[z<0.9].argsort()],np.sort(z[z<0.9]),initial=0.)
+    C_mc =cz[-1]/np.sum(w)
     
     return C_mc, w
+
